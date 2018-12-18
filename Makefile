@@ -6,16 +6,23 @@ CPPFLAGS=-g
 # -Wall
 LDFLAGS=-g
 #$(shell root-config --ldflags)
-LDLIBS=
+LDLIBS=-ljsoncpp
 #$(shell root-config --libs)
 
 SRCS=servercore.cpp serverconnection.cpp fileoperator.cpp ftpserver.cpp
-OBJS=$(subst .cpp,.o,$(SRCS))
+CLIENT_SRCS=client.cpp
 
-all: ftpserver
+OBJS=$(subst .cpp,.o,$(SRCS))
+CLIENT_OBJS=$(subst .cpp,.o,$(CLIENT_SRCS))
+
+all: ftpserver ftpclient
 
 ftpserver: $(OBJS)
 	$(CXX) $(LDFLAGS) -o ftpserver $(OBJS) $(LDLIBS)
+
+ftpclient: $(CLIENT_OBJS)
+	$(CXX) $(LDFLAGS) -o ftpclient $(CLIENT_OBJS) $(LDLIBS)
+
 
 depend: .depend
 
@@ -24,7 +31,7 @@ depend: .depend
 	$(CXX) $(CPPFLAGS) -MM $^>>./.depend;
 
 clean: 
-	$(RM) $(OBJS) ftpserver
+	$(RM) $(OBJS) $(CLIENT_OBJS) ftpserver ftpclient
 
 distclean: clean
 	$(RM) *~ .depend

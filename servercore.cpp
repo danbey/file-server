@@ -1,17 +1,18 @@
-/**
- * File:   servercore.cpp
- * @author: Jan Hendriks
- * @copyright 2010 Jan Hendriks
- * 
- * Created on 1. Dezember 2009, 12:55
- */
-
 #include "servercore.h"
 #include "serverconnection.h"
+#include "json/json.h"
+
+std::string GetCurrentWorkingDir( void ) {
+  char buff[FILENAME_MAX];
+  GetCurrentDir( buff, FILENAME_MAX );
+  std::string current_working_dir(buff);
+  return current_working_dir;
+}
 
 servercore::servercore(uint port, std::string dir, unsigned short commandOffset) : dir(dir), commandOffset(commandOffset), shutdown(false), connId(0) {
     if (chdir(dir.c_str()))
         std::cerr << "Directory could not be changed to '" << dir << "'!" << std::endl;
+    this->init();
     this->initSockets(port);
     this->start();
 }
@@ -103,7 +104,7 @@ int servercore::handleNewConnection() {
 
     printf("Connection accepted: FD=%d - Slot=%lu - Id=%d \n", fd, (this->connections.size()+1), ++(this->connId));
     // The new connection (object)
-    serverconnection* conn = new serverconnection(fd, this->connId, this->dir, hostId, this->commandOffset); // The connection vector
+    serverconnection* conn = new serverconnection(this->fileIdToLocks, fd, this->connId, this->dir, hostId, this->commandOffset); // The connection vector
     // Add it to our list for better management / convenience
     this->connections.push_back(conn);
     return (EXIT_SUCCESS);
@@ -162,6 +163,36 @@ void servercore::setNonBlocking(int &sock) {
     if (fcntl(sock,F_SETFL,opts) < 0) {
         std::cerr << "Error setting socket to non-blocking" << std::endl;
         return;
+    }
+}
+
+
+void servercore::init() {
+    //update fileIdToLocks
+    DIR *dp;
+    struct dirent *dirp;
+    std::string curr_file_dir(GetCurrentWorkingDir());
+
+    std::cout << "Working on dir: " << curr_file_dir << std::endl;   
+    try {
+        dp = opendir(curr_file_dir.c_str());
+        while ((dirp = readdir(dp)) != NULL) {
+            if(dirp->d_type == DT_DIR)
+                continue;
+
+            std::string file_name(dirp->d_name);
+            size_t dot_pos = file_name.find_first_of('.');
+             if (dot_pos == std::string::npos)
+                continue;
+
+            file_name.erase(dot_pos, file_name.length()-dot_pos);
+
+            fileIdToLocks.emplace(atoi(file_name.c_str()), new struct file_locks);         
+        }
+        
+        closedir(dp);
+    } catch (std::exception e) {
+        std::cerr << "Error (" << e.what() << ") opening '" << curr_file_dir << "'" << std::endl;
     }
 }
 

@@ -1,16 +1,3 @@
-/**
- * File:   servercore.h
- * @author: Jan Hendriks
- * @copyright 2010 Jan Hendriks
- *
- * Created on 1. Dezember 2009, 12:54
- *
- * Sources of information used:
- * http://www.zotteljedi.de/socket-tipps/
- * http://www.lowtek.com/sockets/select.html
- *
- */
-
 #ifndef _SERVERCORE_H
 #define	_SERVERCORE_H
 
@@ -27,14 +14,26 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <mutex>
+#include <map>
+#include <unistd.h>
+#define GetCurrentDir getcwd
+
+struct file_locks {
+   std::mutex mutex_reader;
+   std::mutex mutex_writer;
+   int count_reader;
+};
 
 class servercore {
 public:
     servercore(uint port,std::string dir, unsigned short commandOffset = 1);
     ~servercore();
+    std::map<int, struct file_locks *> fileIdToLocks;
 
 private:
     int start();
+    void init();
     void initSockets(int port);
     void setNonBlocking(int &sock);
     void buildSelectList();
