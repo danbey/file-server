@@ -8,6 +8,9 @@ LDFLAGS=-g
 #$(shell root-config --ldflags)
 LDLIBS=-ljsoncpp
 #$(shell root-config --libs)
+INCLUDEJSON=-I./json/include/
+
+$(DBY DEBUG AAAAAA)
 
 SRCS=servercore.cpp serverconnection.cpp fileoperator.cpp ftpserver.cpp
 CLIENT_SRCS=client.cpp
@@ -18,17 +21,17 @@ CLIENT_OBJS=$(subst .cpp,.o,$(CLIENT_SRCS))
 all: ftpserver ftpclient
 
 ftpserver: $(OBJS)
-	$(CXX) $(LDFLAGS) -o ftpserver $(OBJS) $(LDLIBS)
+	$(CXX) $(LDFLAGS) $(INCLUDEJSON) -o ftpserver $(OBJS) $(LDLIBS)
 
 ftpclient: $(CLIENT_OBJS)
-	$(CXX) $(LDFLAGS) -o ftpclient $(CLIENT_OBJS) $(LDLIBS)
+	$(CXX) $(LDFLAGS) $(INCLUDEJSON) -o ftpclient $(CLIENT_OBJS) $(LDLIBS)
 
 
 depend: .depend
 
 .depend: $(SRCS)
 	$(RM) ./.depend
-	$(CXX) $(CPPFLAGS) -MM $^>>./.depend;
+	$(CXX) $(CPPFLAGS) $(INCLUDEJSON) -MM $^>>./.depend;
 
 clean: 
 	$(RM) $(OBJS) $(CLIENT_OBJS) ftpserver ftpclient

@@ -147,21 +147,38 @@ std::vector<std::string> serverconnection::extractParameters(std::string command
 void serverconnection::respondToQuery() {
     char buffer[BUFFER_SIZE];
     int bytes;
-    Json::StreamWriterBuilder builder_writer;
+    //Json::StreamWriterBuilder builder_writer;
+    json builder_writer;
+    std::cout << "DBY DEBUG func:" << __func__ << std::endl;
     bytes = recv(this->fd, buffer, sizeof(buffer), 0);
+    
+    json j3 = json::parse(buffer);
     std::string recv_str = std::string(buffer, bytes);
     const auto rawJsonLength = static_cast<int>(recv_str.length());
     constexpr bool shouldUseOldWay = false;
-    JSONCPP_STRING err;
-    Json::Value root;
-    Json::CharReaderBuilder builder;
-    const std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
+
+    std::cout << recv_str.c_str();
+
+
+    exit(0);
+
+
+
+    //JSONCPP_STRING err;
+    
+    //json::Value root;
+    
+    //Json::CharReaderBuilder builder;
+    
+    //const std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
+    
+    /*
     reader->parse(recv_str.c_str(), recv_str.c_str() + rawJsonLength, &root, &err);
 
     const std::string clientCommand = root["command"].asString();
     const std::string file_name = root["ID"].asString();
     const std::string file_data = root["data"].asString();
-
+    
     // In non-blocking mode, bytes <= 0 does not mean a connection closure!
     if (file_data.size() > 0) {
         if (this->uploadCommand || this->putCommand) { // (Previous) upload command
@@ -210,6 +227,7 @@ void serverconnection::respondToQuery() {
         //}
 
     }
+    */
 }
 
 // Sends the given string to the client using the current connection
@@ -229,7 +247,7 @@ void serverconnection::sendToClient(char* response, unsigned long length) {
 void serverconnection::sendToClient(const std::string &response) {
     // Now we're sending the response
     unsigned int bytesSend = 0;
-    Json::Value root;
+    //Json::Value root;
     
     while (bytesSend < response.length()) {
         int ret = send(this->fd, response.c_str()+bytesSend, response.length()-bytesSend, 0);

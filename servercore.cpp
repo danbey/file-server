@@ -1,6 +1,6 @@
 #include "servercore.h"
 #include "serverconnection.h"
-#include "json/json.h"
+
 
 std::string GetCurrentWorkingDir( void ) {
   char buff[FILENAME_MAX];

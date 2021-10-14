@@ -19,6 +19,10 @@
 #include <unistd.h>
 #define GetCurrentDir getcwd
 
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
+
 struct file_locks {
    std::mutex mutex_reader;
    std::mutex mutex_writer;
