@@ -1,5 +1,5 @@
 #!/bin/bash
 
-echo "building ftpserver:"
+echo "building ftpclient:"
 
 g++ -g -I./json/include/ client.cpp  -o client
