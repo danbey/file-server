@@ -43,6 +43,7 @@ std::string serverconnection::commandParser(std::string command, std::string fil
     // If command with no argument was issued
         if (this->commandEquals(command, "GET")) {
             this->downloadCommand = true;
+#if 0
             auto mit = fileIdToLocks.find(atoi(fileName.c_str()));
             if (mit == fileIdToLocks.end()) {
                 //TODO need to handle this error
@@ -54,41 +55,47 @@ std::string serverconnection::commandParser(std::string command, std::string fil
             if (mit->second->count_reader == 1)
                 mit->second->mutex_writer.lock();
             mit->second->mutex_reader.unlock();
-            
+#endif
+
             std::cout << "Preparing download of file '" << fileName << "'" << std::endl;
             unsigned long lengthInBytes = 0;
-            char* fileBlock;
+            std::string fileBlock;
             unsigned long readBytes = 0;
-            std::stringstream st;
+            //std::stringstream st;
             if (!this->fo->readFile(fileName)) {
                 // Read the binary file block-wise
 //                do {
-                    st.clear();
-                    fileBlock = this->fo->readFileBlock(lengthInBytes);
-                    st << lengthInBytes;
-                    readBytes += lengthInBytes;
+                    //st.clear();
+                   // this->fo->readFileBlock(lengthInBytes, fileblock);
+                    //st << lengthInBytes;
+                    //readBytes += lengthInBytes;
 //                    this->sendToClient(st.str()); // First, send length in bytes to client
-                    this->sendToClient(fileBlock,lengthInBytes); // This sends the binary char-array to the client
+                    this->sendToClient(this->fo->getCurrentFileInString()); // This sends the binary char-array to the client
 //                    fileoperator* fn = new fileoperator(this->dir);
 //                    fn->writeFileAtOnce("./test.mp3",fileBlock);
 //                } while (lengthInBytes <= readBytes);
             }
 
+#if 0
             mit->second->mutex_reader.lock();
             mit->second->count_reader--;
             if (mit->second->count_reader == 0)
                 mit->second->mutex_writer.unlock();
             mit->second->mutex_reader.unlock();
+#endif
 
             this->closureRequested = true; // Close connection after transfer
         }
         else if (this->commandEquals(command, "UPDATE")) {
+
+#if 0
             auto mit = fileIdToLocks.find(atoi(fileName.c_str()));
             if (mit == fileIdToLocks.end()) {
                 // TODO: need to handle this error
                 return ""; 
             }
             mit->second->mutex_writer.lock();
+#endif
             this->uploadCommand = true; // upload hit!
             std::cout << "Preparing upload of file '" << fileName << "'" << std::endl;
             // all bytes (=parameters[2]) after the upload <file> command belong to the file
@@ -99,6 +106,7 @@ std::string serverconnection::commandParser(std::string command, std::string fil
             this->putCommand = true; // upload hit!
             std::cout << "Preparing upload of file '" << fileName << "'" << std::endl;
             // all bytes (=parameters[2]) after the upload <file> command belong to the file
+            
             res = this->fo->beginWriteFile(fileName);
 //          res = (this->fo->beginWriteFile(this->parameter) ? "Upload failed" : "Upload successful");
         }
@@ -124,6 +132,7 @@ std::string serverconnection::commandParser(std::string command, std::string fil
     return res;
 }
 
+#if 0
 // Extracts the command and parameter (if existent) from the client call
 std::vector<std::string> serverconnection::extractParameters(std::string command) {
     std::vector<std::string> res = std::vector<std::string>();
@@ -142,43 +151,24 @@ std::vector<std::string> serverconnection::extractParameters(std::string command
     }
     return res;
 }
+#endif
 
 // Receives the incoming data and issues the apropraite commands and responds
 void serverconnection::respondToQuery() {
     char buffer[BUFFER_SIZE];
     int bytes;
-    //Json::StreamWriterBuilder builder_writer;
     json builder_writer;
-    std::cout << "DBY DEBUG func:" << __func__ << std::endl;
     bytes = recv(this->fd, buffer, sizeof(buffer), 0);
-    
-    json j3 = json::parse(buffer);
+
     std::string recv_str = std::string(buffer, bytes);
-    const auto rawJsonLength = static_cast<int>(recv_str.length());
-    constexpr bool shouldUseOldWay = false;
 
-    std::cout << recv_str.c_str();
+    json root = json::parse(buffer);
 
+    const std::string clientCommand = root["command"].get<std::string>();
+    const std::string file_name = root["ID"].get<std::string>();
+    const std::string file_data = root["data"].get<std::string>();
 
-    exit(0);
-
-
-
-    //JSONCPP_STRING err;
-    
-    //json::Value root;
-    
-    //Json::CharReaderBuilder builder;
-    
-    //const std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
-    
-    /*
-    reader->parse(recv_str.c_str(), recv_str.c_str() + rawJsonLength, &root, &err);
-
-    const std::string clientCommand = root["command"].asString();
-    const std::string file_name = root["ID"].asString();
-    const std::string file_data = root["data"].asString();
-    
+    int dan = file_data.size();
     // In non-blocking mode, bytes <= 0 does not mean a connection closure!
     if (file_data.size() > 0) {
         if (this->uploadCommand || this->putCommand) { // (Previous) upload command
@@ -194,15 +184,17 @@ void serverconnection::respondToQuery() {
             }
             root["data"] = "";
             root["status"] = "200";
-            const std::string res_to_query = Json::writeString(builder_writer, root);
+            const std::string res_to_query = root.dump();
             this->sendToClient(res_to_query); // Send response to client if no binary file
         }
     } else { // no bytes incoming over this connection
         if (this->uploadCommand || this->putCommand) { // If upload command was issued previously and no data is left to receive, close the file and connection
             
             this->fo->closeWriteFile();
-            
+
+#if 0            
             if (this->uploadCommand) {
+
                 //std::map<int, struct file_locks>::iterator mit =
                 auto mit = 
                     fileIdToLocks.find(atoi(file_name.c_str()));
@@ -217,6 +209,7 @@ void serverconnection::respondToQuery() {
                 auto pair = std::make_pair(1, new file_locks());
                 fileIdToLocks.insert(pair);
             }
+#endif
             this->uploadCommand = false;
             this->downloadCommand = false;
             this->closureRequested = true;
@@ -227,7 +220,7 @@ void serverconnection::respondToQuery() {
         //}
 
     }
-    */
+    
 }
 
 // Sends the given string to the client using the current connection

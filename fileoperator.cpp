@@ -1,4 +1,5 @@
 #include "fileoperator.h"
+#include <regex>
 
 // Constructor, gets the current server root dir as a parameter
 fileoperator::fileoperator(std::string dir) {
@@ -87,7 +88,20 @@ bool fileoperator::createDirectory(std::string &dirName, bool strict) {
 }
 
 // Read a block from the open file
-char* fileoperator::readFileBlock(unsigned long &sizeInBytes) {
+void fileoperator::readFileBlock(std::string &filebuf, unsigned long &sizeInBytes) 
+{
+
+    
+    
+                
+
+
+
+
+
+
+
+#if 0
     // get length of file
     this->currentOpenReadFile.seekg(0, std::ios::end);
     std::ifstream::pos_type size = this->currentOpenReadFile.tellg();
@@ -103,6 +117,12 @@ char* fileoperator::readFileBlock(unsigned long &sizeInBytes) {
     std::cout << "Reading " << size << " Bytes" << std::endl;
     this->currentOpenReadFile.close();
     return memblock;
+#endif
+}
+
+const std::string& fileoperator::getCurrentFileInString() const
+{
+    return this->currentFileInString;
 }
 
 /// @WARNING, @KLUDGE: Concurrent file access not catched
@@ -116,12 +136,21 @@ int fileoperator::readFile(std::string fileName) {
     if (this->currentOpenReadFile.is_open()) {
         return (EXIT_SUCCESS);
     }
+
+    if (this->currentOpenReadFile.good())
+    {
+        std::string  fileStr((std::istreambuf_iterator<char>(this->currentOpenReadFile)), std::istreambuf_iterator<char>());
+        this->currentFileInString = std::move(fileStr);
+    }
+
     std::cerr << "Unable to open file '" << fileName << " '" << std::endl; // << strerror(errno)
     return (EXIT_FAILURE);
 }
 
 int fileoperator::beginWriteFile(std::string fileName) {
-    stripServerRootString(fileName);
+    //stripServerRootString(fileName);
+
+
     this->currentOpenFile.open(fileName.c_str(), std::ios::out|std::ios::binary|std::ios::app); // output file
     if(!this->currentOpenFile) {
         std::cerr << "Cannot open output file '" << fileName << "'" << std::endl;
@@ -148,6 +177,7 @@ int fileoperator::closeWriteFile() {
         std::cout << "Closing open file" << std::endl;
         this->currentOpenFile.close();
     }
+    return 0;
 }
 
 int fileoperator::writeFileAtOnce(std::string fileName, char* content) {

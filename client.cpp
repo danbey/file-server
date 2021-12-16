@@ -10,10 +10,10 @@
 #include <sstream>
 #include <iostream>
 #include <istream>
+#include <iterator>
 #include <string>
 #include <vector>
 #include <streambuf>
-#include <iterator>
 #include <arpa/inet.h>
 #include <nlohmann/json.hpp>
 //#include "json/json.h"
@@ -29,7 +29,7 @@ int create_socket(int,char *);
 #define GetCurrentDir getcwd
 #endif
 
-#define MAXLINE 4096 /*max text line length*/
+#define MAXLINE 1048576 /*max text line length*/
 
 int check_recv_status(int sockfd)
 {
@@ -94,145 +94,107 @@ int main(int argc, char **argv)
         exit(3);
     }
 
-    std::cout<<"ftp>";
+    std::string command;
+    std::string filename;
 
-    while (fgets(sendline, MAXLINE, stdin) != NULL) {
+    std::cout<<"ftp>";
+    std::string line;
+    
+    while (std::getline(std::cin, line)) {
+    
         json root;
         root["ID"] = "";
         root["data"] = "";
         root["status"] = "";
         root["command"] = "";	
 
-        std::istringstream iss(sendline);
+        std::istringstream iss(line);
         std::vector<std::string> parsed ((std::istream_iterator<std::string>(iss)), std::istream_iterator<std::string>());
 
-    
-
-        
-      
-        for (std::vector<std::string>::iterator it = parsed.begin(); it != parsed.end(); it++)
-        {
-            std::cout << it->c_str() << std::endl;
-
-        }
-
-        //send(sockfd, sendline, MAXLINE, 0);
         std::string command(parsed[0]);
+
+        std::cout << command.c_str() << std::endl;
+
         if (!command.compare("quit"))  {
-            //close(sockfd);
-            return 0;
+            break;;
         }
-        else if (!command.compare("put") || !command.compare("update"))  {
-            char port[MAXLINE], buffer[MAXLINE],char_num_blks[MAXLINE],char_num_last_blk[MAXLINE];
-            int data_port,datasock,lSize,num_blks,num_last_blk,i;
-            FILE *fp;
-            std::locale loc;
-            std::transform(command.begin(), command.end(), command.begin(), ::toupper);
-            root["command"] = command;
-            //Json::StreamWriterBuilder builder;
-            std::string filename = parsed[1];
-            //token=strtok(NULL," \n");
-            root["ID"] = filename;
+        else {
+                char buffer[MAXLINE];
+                std::transform(command.begin(), command.end(), command.begin(), ::toupper);
+                root["command"] = command;
 
-            if ((fp=fopen(filename.c_str(),"r"))!=NULL)
-            {
-                //std::cout << "DBY DEBUG func:" << __func__ << " line:" << __LINE__ << std::endl;
+                std::string filename = parsed[1];
 
-                //size of file
-                //send(sockfd,"1",MAXLINE,0);
-                fseek (fp , 0 , SEEK_END);
-                lSize = ftell (fp);
-                rewind (fp);
+                // only for c++17 and up 
+                // std::string filename = std::filesystem::path(filePath).filename().string();
 
-                std::cout << "DBY DEBUG func:" << __FUNCTION__ << "line:" << __LINE__ <<
-                    " lsize:" << lSize << std::endl;
+                size_t pos = filename.rfind("/");
+                if (pos != std::string::npos)
+                     root["ID"] = filename.substr(++pos);
 
-                num_blks = lSize/MAXLINE;
-                num_last_blk = lSize%MAXLINE; 
-                //sprintf(char_num_blks,"%d",num_blks);
-                std::cout << " *****DBY DEBUG func:" << __FUNCTION__ << "line:" << __LINE__ <<
-                    " num_blks:" << num_blks << std::endl;
-                //send(sockfd, char_num_blks, MAXLINE, 0);
-                //std::cout<<num_blks<<"	"<<num_last_blk<<std::endl;
-                for(i= 0; i < num_blks; i++) { 
-                    fread (buffer,sizeof(char),MAXLINE,fp);
-                    root["data"] = buffer;
-                    //const std::string jline = Json::writeString(builder, root);
-                    const std::string jline = root.dump();
-                    std::cout << jline << std::endl;
+            if (!command.compare("PUT") || !command.compare("UPDATE"))  {
+                
+                std::ifstream f(filename.c_str());
+                root["data"] = "";
 
-                    send(sockfd, jline.c_str(), MAXLINE, 0);
-					check_recv_status(sockfd);
-
-                }
-                //sprintf(char_num_last_blk,"%d",num_last_blk);
-                //send(sockfd, char_num_last_blk, MAXLINE, 0);
-                if (num_last_blk > 0) {
-                    fread (buffer,sizeof(char),num_last_blk,fp);
-                    root["data"] = buffer;
-                    //const std::string jline = Json::writeString(builder, root);
-                    const std::string jline = root.dump();
-                    std::cout << jline << std::endl;
-
-                    send(sockfd, jline.c_str(), MAXLINE, 0);
-					check_recv_status(sockfd);
-                //std::cout<<buffer<<std::endl;
-                }
-                fclose(fp);
-                std::cout<<"File upload done.\n";
-				//sending empty data means the upload is done
-				root["data"] = "";
-                //const std::string jline = Json::writeString(builder, root);
-                const std::string jline = root.dump();
-                send(sockfd, jline.c_str(), MAXLINE, 0);
-            }
-            else{
-                //send(sockfd,"0",MAXLINE,0);
-                std::cerr<<"Error in opening file. Check filename\nUsage: put filename"<<std::endl;
-            }
-        }
-        else if (!command.compare("get"))  {
-            char port[MAXLINE], buffer[MAXLINE],char_num_blks[MAXLINE],char_num_last_blk[MAXLINE],message[MAXLINE];
-            int data_port,datasock,lSize,num_blks,num_last_blk,i;
-            FILE *fp;
-            recv(sockfd, port, MAXLINE,0);
-            data_port=atoi(port);
-            datasock=create_socket(data_port,argv[1]);
-            //token=strtok(NULL," \n");
-            std::string filename = parsed[1];
-            recv(sockfd,message,MAXLINE,0);
-            if(strcmp("1",message)==0){
-                if((fp=fopen(filename.c_str(),"w"))==NULL)
-                    std::cout<<"Error in creating file\n";
-                else
+                if (f.good())
                 {
-                    recv(sockfd, char_num_blks, MAXLINE,0);
-                    num_blks=atoi(char_num_blks);
-                    for(i= 0; i < num_blks; i++) { 
-                        recv(datasock, buffer, MAXLINE,0);
-                        fwrite(buffer,sizeof(char),MAXLINE,fp);
-                        //std::cout<<buffer<<std::endl;
-                    }
-                    recv(sockfd, char_num_last_blk, MAXLINE,0);
-                    num_last_blk=atoi(char_num_last_blk);
-                    if (num_last_blk > 0) { 
-                        recv(datasock, buffer, MAXLINE,0);
-                        fwrite(buffer,sizeof(char),num_last_blk,fp);
-                        //std::cout<<buffer<<std::endl;
-                    }
-                    fclose(fp);
-                    std::cout<<"File download done."<<std::endl;
+                    std::string  str((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+                    root["data"] = str;
                 }
+                else {
+                    std::cout << "No such file: " << filename.c_str() << std::endl;
+                    continue;
+                }
+                
+                send(sockfd, root.dump().c_str(), root.dump().size()+1 ,0);
+                f.close();
+
+                //recieving response
+                recv(sockfd, buffer, MAXLINE,0);
+
+                //sending empty data to close the connection
+                json root = json::parse(buffer);
+                const std::string status = root["status"].get<std::string>();
+                std::cout << status.c_str() << std::endl;
+                root["data"] = "";
+                send(sockfd, root.dump().c_str(), root.dump().size()+1 ,0);
+
+            } else if (!command.compare("GET"))  {
+
+                send(sockfd, root.dump().c_str(), root.dump().size()+1 ,0);
+
+                //recieving response
+                recv(sockfd, buffer, MAXLINE,0);
+
+                json root = json::parse(buffer);
+                std::string status = root["status"].get<std::string>();
+                std::cout << status.c_str() << std::endl;
+
+                std::ofstream f(filename.c_str());
+                if (f.good())
+                {
+                    std::ostreambuf_iterator<char> osbuf(f) ;
+                    osbuf._M_put(root["data"].get<std::string>().c_str(), root["data"].get<std::string>().size());
+                }
+
+                //std::cout << root.dump().c_str() << std::endl;
+                f.close();
+
+                //sending empty data to close the connection
+                root = json::parse(buffer);
+                status = root["status"].get<std::string>();
+                std::cout << status.c_str() << std::endl;
+                root["data"] = "";
+                send(sockfd, root.dump().c_str(), root.dump().size()+1 ,0);
+
+                std::cout<<"File download done."<<std::endl;
             }
-            else{
-                std::cerr<<"Error in opening file. Check filename\nUsage: put filename"<<std::endl;
+            else {
+                std::cerr<<"Error in command. Check Command"<<std::endl;
             }
-        }
-        else{
-            std::cerr<<"Error in command. Check Command"<<std::endl;
         }
         std::cout<<"ftp>";
-
     }
 
     exit(0);
